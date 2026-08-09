@@ -1,0 +1,10 @@
+{
+  "description": "Analyzes fruit ripeness via sensor data and color-changing film to provide precise harvest timing and quality alerts, aiding farmers in reducing crop loss.",
+  "robots": {
+    "index": false
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}
