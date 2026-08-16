@@ -1,115 +1,72 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { FRUIT_DEFS, STAGES, PH_MIN, PH_MAX, stageFor } from '@/constants/fruitConstants';
+import { useFruitSimulation } from '@/hooks/useFruitSimulation';
+import ManualMeasurement from './pages/Manual_measurement'
+import ReferenceDataTable from './pages/ReferenceDataTable';
+import MeasurementHistoryLog from './pages/MeasurementHistoryLog';
+import AIScannerModal from './components/AIScannerModal';
+import type { FruitState, AlertItem, AIAnalysisResult } from '@/types/fruits';
+import { analyzeFilmWithAI, captureFrame } from "@/lib/geminiVision";
+import BiofilmExtraMetrics from './components/BiofilmExtraMetrics';
 
-interface FruitDef {
-  id: string;
-  zone: string;
-  name: string;
-  startPh: number;
-  rate: number;
-  tempBase: number;
-  humBase: number;
-  imageHint?: string;
-}
 
-interface StageInfo {
-  key: string;
-  short: string;
-  full: string;
-  color: string;
-  bgClass: string;
-  max: number;
-}
 
-interface FruitState {
-  def: FruitDef;
-  ph: number;
-  temp: number;
-  hum: number;
-  integrity: number; // 0 - 100%
-  essentialOilLevel: number; // 0 - 100%
-  anomaly: boolean;
-  anomalyTicks: number;
-  anomalyReason?: string;
-  history: number[];
-  lastStageKey: string;
-  integrityWarned?: boolean;
-}
-
-interface AlertItem {
-  id: string;
-  time: string;
-  day: number;
-  zoneId?: string;
-  kind: 'info' | 'stage' | 'danger' | 'success';
-  title: string;
-  message: string;
-}
-
-interface AIAnalysisResult {
-  phEstimate: number;
-  temperature: number;
-  humidity: number;
-  shelfLifeDays: number;
-  filmIntegrity: number;
-  essentialOilLevel: number;
-  stageName: string;
-  filmColor: string;
-  pestOrMoldDetected: boolean;
-  confidence: number;
-  recommendation: string;
-  details: string;
-}
-
-const STAGES: StageInfo[] = [
-  { key: 'unripe', short: 'ยังดิบ', full: 'ยังดิบ · ฟิล์มสีเขียว (pH 3.0-3.5)', color: '#2e7d32', bgClass: 'bg-emerald-900/40 text-emerald-300 border-emerald-700/50', max: 3.5 },
-  { key: 'ripening', short: 'กำลังสุก', full: 'กำลังสุก · ฟิล์มสีเหลือง/ส้ม (pH 3.6-4.2)', color: '#d97706', bgClass: 'bg-amber-900/40 text-amber-300 border-amber-700/50', max: 4.2 },
-  { key: 'prime', short: 'สุกพอดี', full: 'สุกพอดี · ฟิล์มสีส้มแดง พร้อมเก็บเกี่ยว (pH 4.3-5.0)', color: '#ea580c', bgClass: 'bg-orange-900/40 text-orange-300 border-orange-700/50', max: 5.0 },
-  { key: 'spoiled', short: 'สุกเกิน/เน่า', full: 'สุกเกิน/เสื่อมสภาพ · ฟิล์มสีม่วง (pH > 5.0)', color: '#9333ea', bgClass: 'bg-purple-900/40 text-purple-300 border-purple-700/50', max: 99 }
-];
-
-const FRUIT_DEFS: FruitDef[] = [
-  { id: 'mango', zone: 'โซน A', name: 'มะม่วง', startPh: 3.1, rate: 0.014, tempBase: 29, humBase: 62 },
-  { id: 'banana', zone: 'โซน B', name: 'กล้วย', startPh: 3.3, rate: 0.022, tempBase: 28, humBase: 65 },
-  { id: 'papaya', zone: 'โซน C', name: 'มะละกอ', startPh: 3.4, rate: 0.018, tempBase: 30, humBase: 68 },
-  { id: 'guava', zone: 'โซน D', name: 'ฝรั่ง', startPh: 3.2, rate: 0.012, tempBase: 29, humBase: 60 }
-];
-
-const PH_MIN = 3.0;
-const PH_MAX = 7.0;
-
-function stageFor(ph: number): StageInfo {
-  for (const s of STAGES) {
-    if (ph <= s.max) return s;
-  }
-  return STAGES[STAGES.length - 1];
-}
-
-const buildInitialFruitStates = (): Record<string, FruitState> => {
-  const initialStates: Record<string, FruitState> = {};
-  FRUIT_DEFS.forEach((f) => {
-    initialStates[f.id] = {
-      def: f,
-      ph: f.startPh,
-      temp: f.tempBase,
-      hum: f.humBase,
-      integrity: 100,
-      essentialOilLevel: 100,
-      anomaly: false,
-      anomalyTicks: 0,
-      history: [f.startPh],
-      lastStageKey: stageFor(f.startPh).key,
-    };
-  });
-  return initialStates;
-};
 
 export default function App() {
-  const [dayCount, setDayCount] = useState<number>(0);
-  const [paused, setPaused] = useState<boolean>(false);
+  const {
+    dayCount,
+    setDayCount,
+    paused,
+    setPaused,
+    alerts,
+    fruitStates,
+    triggerManualAnomaly,
+    handleReset,
+  } = useFruitSimulation();
+
+  async function handleScanClick() {
+  setIsAnalyzing(true);
+  setAiResult(null);
+
+  try {
+    let base64: string;
+
+    if (scanMethod === 'upload') {
+      if (!selectedImage) {
+        setCameraError('กรุณาอัปโหลดรูปก่อนสแกน');
+        setIsAnalyzing(false);
+        return;
+      }
+      base64 = selectedImage.split(',')[1]; // ตัด "data:image/png;base64," ออก
+
+    } else if (scanMethod === 'webcam') {
+      if (!videoRef.current) {
+        setCameraError('กล้องยังไม่พร้อม');
+        setIsAnalyzing(false);
+        return;
+      }
+      base64 = captureFrame(videoRef);
+
+    } else {
+      // simulated — ใช้รูปตัวอย่างสำหรับ demo
+      setCameraError('โหมดจำลองยังไม่รองรับการสแกนจริง');
+      setIsAnalyzing(false);
+      return;
+    }
+
+    const result = await analyzeFilmWithAI(base64);
+    setAiResult(result);
+
+  } catch (err) {
+    console.error(err);
+    setCameraError('สแกนไม่สำเร็จ ลองใหม่อีกครั้ง');
+  } finally {
+    setIsAnalyzing(false);
+  }
+}
+
   const [selectedId, setSelectedId] = useState<string>(FRUIT_DEFS[0].id);
-  const [alerts, setAlerts] = useState<AlertItem[]>([]);
-  
-  const [fruitStates, setFruitStates] = useState<Record<string, FruitState>>(buildInitialFruitStates);
+  const [page, setPage] = useState<'dashboard' | 'manual' | 'ReferenceDataTable' | 'MeasurementHistoryLog'>('dashboard')
   
   // Modals & AI Scanner State
   const [showAiModal, setShowAiModal] = useState<boolean>(false);
@@ -457,244 +414,53 @@ export default function App() {
     return null;
   };
 
-  const addAlert = (zoneId: string, fruitName: string, kind: AlertItem['kind'], title: string, message: string) => {
-    const newAlert: AlertItem = {
-      id: Math.random().toString(36).substring(2, 9),
-      time: new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }),
-      day: Math.floor(dayCount),
-      zoneId,
-      kind,
-      title: `${zoneId} — ${fruitName}`,
-      message,
-    };
-    setAlerts((prev) => [newAlert, ...prev.slice(0, 49)]);
+function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
+  const file = e.target.files?.[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = () => {
+    setSelectedImage(reader.result as string); // data URL สำหรับ preview
+    setAiResult(null); // ล้างผลเก่าทุกครั้งที่เปลี่ยนรูป
   };
-
-  useEffect(() => {
-    if (paused || Object.keys(fruitStates).length === 0) return;
-
-    const interval = setInterval(() => {
-      setDayCount((prevDay) => {
-        const nextDay = prevDay + 0.25;
-
-        setFruitStates((prevStates) => {
-          const updated = { ...prevStates };
-
-          FRUIT_DEFS.forEach((f) => {
-            const s = { ...updated[f.id] };
-            if (!s) return;
-
-            if (s.anomalyTicks > 0) {
-              s.anomalyTicks -= 1;
-              s.ph += f.rate * 1.8 + (Math.random() - 0.3) * 0.15;
-              s.hum += (Math.random() - 0.2) * 8;
-              s.temp += (Math.random() - 0.5) * 1.5;
-              s.integrity = Math.max(0, s.integrity - (1.5 + Math.random() * 2));
-              s.essentialOilLevel = Math.max(0, s.essentialOilLevel - 1.2);
-              if (s.anomalyTicks === 0) {
-                s.anomaly = false;
-              }
-            } else {
-              s.ph += f.rate + (Math.random() - 0.5) * 0.008;
-              s.hum = f.humBase + Math.sin(nextDay * 0.7 + f.rate * 50) * 3 + (Math.random() - 0.5) * 1.5;
-              s.temp = f.tempBase + Math.sin(nextDay * 0.4) * 1.2 + (Math.random() - 0.5) * 0.4;
-              s.integrity = Math.max(0, s.integrity - (0.15 + Math.random() * 0.2));
-              s.essentialOilLevel = Math.max(0, s.essentialOilLevel - 0.25);
-            }
-
-            s.ph = Math.min(PH_MAX, Math.max(PH_MIN, s.ph));
-            s.history = [...s.history, s.ph].slice(-40);
-
-            // Stage Change Check
-            const newStage = stageFor(s.ph);
-            if (newStage.key !== s.lastStageKey) {
-              s.lastStageKey = newStage.key;
-              if (newStage.key === 'ripening') {
-                addAlert(f.zone, f.name, 'info', 'กำลังสุก', `ฟิล์มเปลี่ยนสีเป็นส้ม/เหลือง (pH ${s.ph.toFixed(2)})`);
-              } else if (newStage.key === 'prime') {
-                addAlert(f.zone, f.name, 'success', 'สุกพอดีพร้อมเก็บเกี่ยว', `ฟิล์มเปลี่ยนเป็นสีส้มแดง (pH ${s.ph.toFixed(2)})`);
-              } else if (newStage.key === 'spoiled') {
-                addAlert(f.zone, f.name, 'danger', 'เตือนฟิล์มเสื่อม/สุกเกิน', `พบค่า pH สูงผิดปกติ ฟิล์มเปลี่ยนเป็นสีม่วง (${s.ph.toFixed(2)})`);
-              }
-            }
-
-            // Low Integrity Check
-            if (s.integrity < 35 && !s.integrityWarned) {
-              s.integrityWarned = true;
-              addAlert(f.zone, f.name, 'danger', 'ฟิล์มชีวภาพชำรุด', `ความสมบูรณ์ฟิล์มต่ำกว่า 35% (${s.integrity.toFixed(0)}%) ควรตรวจสอบรอยฉีกขาด`);
-            }
-
-            // Spontaneous Pest Attack / Anomaly Simulation
-            if (!s.anomaly && Math.random() < 0.008) {
-              s.anomaly = true;
-              s.anomalyTicks = 5;
-              s.anomalyReason = 'พบสิ่งแปลกปลอม/แมลงเจาะฟิล์มชีวภาพ';
-              addAlert(f.zone, f.name, 'danger', 'ตรวจพบสิ่งแปลกปลอม!', 'ความชื้นและอุณหภูมิแกว่งผิดปกติ อาจมีแมลงวันทองหรือเชื้อราปนเปื้อน');
-            }
-
-            updated[f.id] = s;
-          });
-
-          return updated;
-        });
-
-        return nextDay;
-      });
-    }, 2500);
-
-    return () => clearInterval(interval);
-  }, [paused, fruitStates]);
-
-  const triggerManualAnomaly = (fruitId: string) => {
-    setFruitStates((prev) => {
-      const s = { ...prev[fruitId] };
-      if (!s) return prev;
-      s.anomaly = true;
-      s.anomalyTicks = 6;
-      s.anomalyReason = 'จำลองแมลงศัตรูพืชสัมผัสฟิล์ม';
-      addAlert(s.def.zone, s.def.name, 'danger', 'จำลองสิ่งแปลกปลอม', 'ระบบตรวจพบความผิดปกติของฟิล์มจากการจำลอง');
-      return { ...prev, [fruitId]: s };
-    });
-  };
-
-  const handleReset = () => {
-    setDayCount(0);
-    setAlerts([]);
-    setFruitStates(buildInitialFruitStates());
-  };
-
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setSelectedImage(reader.result as string);
-        setAiResult(null);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
+  reader.readAsDataURL(file);
+}
 
   const analyzeImageWithGemini = async () => {
-    let finalImage = selectedImage;
-    const activeFruit = scanMethod === 'simulated' ? simulatedFruitId : selectedId;
+  setIsAnalyzing(true);
+  setAiResult(null);
+  setCameraError(null);
 
-    if (scanMethod === 'simulated') {
-      finalImage = captureSimulatedFrame();
-      setSelectedImage(finalImage);
-    } else if (scanMethod === 'webcam') {
-      finalImage = captureWebcamFrame();
-      setSelectedImage(finalImage);
-    }
+  try {
+    let base64: string;
 
-    if (!finalImage) {
-      if (scanMethod === 'upload') {
-        alert('กรุณาอัปโหลดรูปภาพผลไม้ก่อนเริ่มสแกน');
-      } else if (scanMethod === 'webcam') {
-        alert('กรุณาเปิดใช้งานกล้องเว็บบอร์ดหรือใช้รูปถ่ายตัวอย่าง');
+    if (scanMethod === 'upload') {
+      if (!selectedImage) {
+        setCameraError('กรุณาอัปโหลดรูปก่อนสแกน');
+        setIsAnalyzing(false);
+        return;
       }
+      base64 = selectedImage.split(',')[1];
+
+    } else if (scanMethod === 'webcam') {
+      base64 = captureFrame(videoRef);
+
+    } else {
+      setCameraError('โหมดจำลองยังไม่รองรับการสแกนจริง กรุณาเลือกกล้องเว็บแคมหรืออัปโหลดภาพ');
+      setIsAnalyzing(false);
       return;
     }
 
-    setIsAnalyzing(true);
-    setAiResult(null);
-    setSelectedHotspot(null);
-    setScanProgressStep(0);
+    const result = await analyzeFilmWithAI(base64);
+    setAiResult(result);
 
-    const steps = [
-      { text: 'กำลังเชื่อมต่อโมดูลกล้องชีวภาพและประมวลผลเซนเซอร์ภาพ...', delay: 0 },
-      { text: 'กำลังระบุขอบเขตความปลอดภัยและวิเคราะห์โครงสร้างฟิล์ม Chitosan...', delay: 800 },
-      { text: 'กำลังยิงแสงเลเซอร์จำลอง เพื่อตรวจวัดช่วงความยาวคลื่นสะท้อนกลับ (Reflectance)...', delay: 1600 },
-      { text: 'กำลังคำนวณสถิติค่าสีแอนโทไซยานิน เพื่อเทียบค่า pH อินดิเคเตอร์...', delay: 2400 },
-      { text: 'กำลังประมวลผลจำลองโมเดล AI และสร้างแผนที่อุณหภูมิผิวสัมผัสฟิล์ม...', delay: 3200 },
-    ];
-
-    steps.forEach((step, index) => {
-      setTimeout(() => {
-        setScanProgressStep(index);
-        setScanProgressText(step.text);
-      }, step.delay);
-    });
-
-    // We wait for the 4-second visual progress to complete for maximum aesthetics.
-    setTimeout(() => {
-      const hasAnomaly = fruitStates[activeFruit]?.anomaly ?? false;
-      let baseResult: AIAnalysisResult;
-
-      if (activeFruit === 'mango') {
-        baseResult = {
-          phEstimate: hasAnomaly ? 4.85 : 4.15,
-          temperature: hasAnomaly ? 29.8 : 28.5,
-          humidity: hasAnomaly ? 74 : 65,
-          shelfLifeDays: hasAnomaly ? 1 : 4,
-          filmIntegrity: hasAnomaly ? 58 : 94,
-          essentialOilLevel: hasAnomaly ? 45 : 85,
-          stageName: hasAnomaly ? 'สุกเกิน / ได้รับความเสียหาย' : 'กำลังสุก',
-          filmColor: hasAnomaly ? 'สีม่วงด่างช้ำ (Anionic Form จากความเสียหาย)' : 'สีเหลืองส้ม (Quinonoidal Anhydrobase)',
-          pestOrMoldDetected: hasAnomaly,
-          confidence: 95,
-          recommendation: hasAnomaly
-            ? '⚠️ ตรวจพบการแทรกซึมของหนอนแมลงวันทองบริเวณเนื้อช้ำ ส่งผลให้ฟิล์มฉีกขาดและคายน้ำคาร์บอนไดออกไซด์สูงผิดปกติ ควรรีบคัดมะม่วงในตู้จำลองนี้ออกเพื่อป้องกันการแพร่กระจายสปอร์เชื้อราราสีเทา'
-            : 'เกราะเคลือบฟิล์มไคโตซานอยู่ในสภาวะสมบูรณ์ดี สารระเหยตะไคร้-กานพลูระเหยอย่างคงที่ในอัตราที่สมดุล ป้องกันศัตรูพืชได้ 100% คาดว่ามะม่วงจะหวานหอมพร้อมเก็บเกี่ยวเต็มที่ใน 2-3 วัน',
-          details: 'วิเคราะห์โครงสร้างสเปกตรัม: ความหนาแน่นของฟิล์ม 94% อุณหภูมิ 28.5°C สัมพันธ์กับค่าความต้านทานแรงดึงฟิล์มชีวภาพที่เสถียร ไม่พบการรั่วไหลของความชื้น'
-        };
-      } else if (activeFruit === 'banana') {
-        baseResult = {
-          phEstimate: hasAnomaly ? 4.90 : 3.80,
-          temperature: hasAnomaly ? 29.5 : 28.1,
-          humidity: hasAnomaly ? 72 : 66,
-          shelfLifeDays: hasAnomaly ? 2 : 6,
-          filmIntegrity: hasAnomaly ? 62 : 96,
-          essentialOilLevel: hasAnomaly ? 42 : 88,
-          stageName: hasAnomaly ? 'กล้วยช้ำ / สปอร์เชื้อราฟู' : 'ห่าม / กำลังสุก',
-          filmColor: hasAnomaly ? 'สีน้ำตาลม่วงด่าง (ชำรุด)' : 'สีเหลืองสลัว (Anthocyanin Anhydrobase)',
-          pestOrMoldDetected: hasAnomaly,
-          confidence: 97,
-          recommendation: hasAnomaly
-            ? '⚠️ ตรวจพบสปอร์ราเขียว (Colletotrichum) กำลังเจริญเติบโตที่ขั้วหวีกล้วยเนื่องจากรอยฉีกขาดของฟิล์มไคโตซาน แนะนำควบคุมสภาพอากาศในโซน B ให้มีอุณหภูมิต่ำและรีบแยกชิ้นส่วนที่ชำรุดออก'
-            : 'กล้วยค่อยๆ เปลี่ยนสีอย่างมั่นคง ฟิล์มไคโตซานช่วยดูดซับโมเลกุลน้ำและชะลอการแลกเปลี่ยนเอทิลีนได้อย่างเป็นธรรมชาติ รักษาความหวานหนึบและลดการเกิดสีดำช้ำบนเปลือกกล้วยได้นานกว่าปกติ 2 เท่า',
-          details: 'ความเรียบเนียนผิวสัมผัสเฉลี่ย 96% มีปริมาณฟีนอลิกช่วยต้านอนุมูลอิสระบนพื้นผิวอยู่ในระดับสูง ไม่พบรอยเจาะจากแมลงศัตรูพืชรอบนอก'
-        };
-      } else if (activeFruit === 'papaya') {
-        baseResult = {
-          phEstimate: hasAnomaly ? 5.20 : 4.45,
-          temperature: hasAnomaly ? 30.1 : 28.6,
-          humidity: hasAnomaly ? 76 : 67,
-          shelfLifeDays: hasAnomaly ? 0 : 3,
-          filmIntegrity: hasAnomaly ? 48 : 91,
-          essentialOilLevel: hasAnomaly ? 30 : 81,
-          stageName: hasAnomaly ? 'เน่าเสีย / สารเคลือบยุบตัว' : 'สุกพอดีพร้อมทาน',
-          filmColor: hasAnomaly ? 'สีม่วงเข้มซีด (Alkaline Hydrolysis State)' : 'สีส้มแดง (Anthocyanin Quinonoidal Form)',
-          pestOrMoldDetected: hasAnomaly,
-          confidence: 94,
-          recommendation: hasAnomaly
-            ? '⚠️ ตรวจพบแก๊สระเหยและน้ำเยิ้มเนื่องจากการย่อยสลายของเพลี้ยแป้งใต้แผ่นฟิล์มชีวภาพ ฟิล์มสูญเสียคุณสมบัติเป็นกึ่งซึมผ่านอย่างสมบูรณ์ (Integrity ต่ำกว่า 50%) ควรรีบทำลายผลสปอยล์เพื่อรักษาความสะอาด'
-            : 'มะละกอสุกพอดี มีสีฟิล์มส้มแดงเข้มสวยงาม เนื้อสัมผัสแน่นกรอบกำลังดี อัตราการสูญเสียน้ำลดลง 40% เมื่อเทียบกับกลุ่มไม่ได้เคลือบ แนะนำนำออกจำหน่ายภายใต้สภาวะควบคุมฝุ่นและแสงแดดจัด',
-          details: 'วิเคราะห์การกระเจิงสเปกตรัมแสง: เม็ดสีแอนโทไซยานินเปลี่ยนรูป Quinonoidal ชัดเจน บ่งบอกสภาวะสุกที่ pH 4.45 แผงระเหยกานพลูป้องกันการสะสมแบคทีเรียรอบข้างได้คงทน'
-        };
-      } else {
-        baseResult = {
-          phEstimate: hasAnomaly ? 4.50 : 3.25,
-          temperature: hasAnomaly ? 29.2 : 27.9,
-          humidity: hasAnomaly ? 70 : 62,
-          shelfLifeDays: hasAnomaly ? 3 : 10,
-          filmIntegrity: hasAnomaly ? 65 : 98,
-          essentialOilLevel: hasAnomaly ? 55 : 95,
-          stageName: hasAnomaly ? 'เนื้อช้ำด้านใน' : 'ยังดิบ / รักษาสภาพ',
-          filmColor: hasAnomaly ? 'สีม่วงเข้มซีด (จากความเค้นช้ำ)' : 'สีเขียวอมเหลือง (Flavylium Cation State)',
-          pestOrMoldDetected: hasAnomaly,
-          confidence: 98,
-          recommendation: hasAnomaly
-            ? '⚠️ ตรวจพบรอยกระแทกที่แผงเคลือบผิวส่งผลให้แบคทีเรียสร้างสารเหนี่ยวนำให้ฟิล์มแอนโทไซยานินกลายเป็นม่วงด่าง ควรรีบพ่นสารสกัดซ่อมแซมผิวฟิล์มเพื่อปิดช่องโหว่รอยร้าวป้องกันแมลงวางไข่'
-            : 'ฝรั่งยังคงสภาพดิบสมบูรณ์ที่สุด ความสมบูรณ์ของฟิล์ม 98% สารระเหยสมุนไพรกานพลูทำงานเต็มร้อย ป้องกันแมลงวันทองเจาะวางไข่ได้ 100% ช่วยคงรสสัมผัสที่กรอบ อร่อย และหวานธรรมชาติได้อย่างยาวนาน',
-          details: 'ความยืดหยุ่นของฟิล์มไคโตซานผสมกลีเซอรอลทนแรงดึงได้เสถียร การแลกเปลี่ยน O2 และ CO2 เป็นไปตามกลไกสลอว์บรีธติ้ง (Slow Breathing) ยืดความสดชื่นสูงสุด'
-        };
-      }
-
-      setAiResult(baseResult);
-      setIsAnalyzing(false);
-    }, 4000);
-  };
+  } catch (err) {
+  console.error(err);
+  setCameraError('สแกนไม่สำเร็จ: ' + (err instanceof Error ? err.message : String(err)));
+  } finally {
+    setIsAnalyzing(false);
+  }
+};
 
   const fallbackState: FruitState = {
     def: FRUIT_DEFS[0],
@@ -729,7 +495,7 @@ export default function App() {
                 <h1 className="text-xl font-bold tracking-tight text-[#efead9] font-serif">FreshGuard</h1>
                 <span className="text-xs bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded-full font-mono">Smart Biofilm</span>
               </div>
-              <p className="text-xs text-[#93a89a]">เฝ้าระวังความสุกและฟิล์มชีวภาพอัจฉริยะ (Chitosan-based Indicator)</p>
+              <p className="text-xs text-[#93a89a]">เฝ้าระวังความสุกและฟิล์มชีวภาพอัจฉริยะ</p>
             </div>
           </div>
 
@@ -749,6 +515,106 @@ export default function App() {
           </div>
         </div>
       </header>
+      <div style={{ padding: 12 }}>
+        <div
+  style={{
+    display: 'flex',
+    gap: 10,
+    padding: '12px 16px',
+    background: 'rgba(255,255,255,0.03)',
+    borderBottom: '1px solid rgba(255,255,255,0.08)',
+  }}
+>
+  <button
+    onClick={() => setPage('dashboard')}
+    style={{
+      display: 'flex',
+      alignItems: 'center',
+      gap: 6,
+      padding: '8px 16px',
+      borderRadius: 8,
+      border: page === 'dashboard' ? '1px solid #34d399' : '1px solid rgba(255,255,255,0.12)',
+      background: page === 'dashboard' ? 'rgba(52,211,153,0.15)' : 'rgba(255,255,255,0.04)',
+      color: page === 'dashboard' ? '#6ee7b7' : '#cbd5c9',
+      fontSize: 14,
+      fontWeight: 600,
+      cursor: 'pointer',
+      transition: 'all 0.15s ease',
+    }}
+  >
+    🏠 หน้าหลัก
+  </button>
+
+  <button
+    onClick={() => setPage('manual')}
+    style={{
+      display: 'flex',
+      alignItems: 'center',
+      gap: 6,
+      padding: '8px 16px',
+      borderRadius: 8,
+      border: page === 'manual' ? '1px solid #fbbf24' : '1px solid rgba(255,255,255,0.12)',
+      background: page === 'manual' ? 'rgba(251,191,36,0.15)' : 'rgba(255,255,255,0.04)',
+      color: page === 'manual' ? '#fde68a' : '#cbd5c9',
+      fontSize: 14,
+      fontWeight: 600,
+      cursor: 'pointer',
+      transition: 'all 0.15s ease',
+    }}
+  >
+    📝 บันทึกค่าที่วัดจริง
+  </button>
+
+  <button
+    onClick={() => setPage('ReferenceDataTable')}
+    style={{
+      display: 'flex',
+      alignItems: 'center',
+      gap: 6,
+      padding: '8px 16px',
+      borderRadius: 8,
+      border: page === 'ReferenceDataTable' ? '1px solid #fbbf24' : '1px solid rgba(255,255,255,0.12)',
+      background: page === 'ReferenceDataTable' ? 'rgba(251,191,36,0.15)' : 'rgba(255,255,255,0.04)',
+      color: page === 'ReferenceDataTable' ? '#fde68a' : '#cbd5c9',
+      fontSize: 14,
+      fontWeight: 600,
+      cursor: 'pointer',
+      transition: 'all 0.15s ease',
+    }}
+  >
+    ตารางอ้างอิงค่า pH มาตรฐาน
+  </button>
+
+  <button
+    onClick={() => setPage('MeasurementHistoryLog')}
+    style={{
+      display: 'flex',
+      alignItems: 'center',
+      gap: 6,
+      padding: '8px 16px',
+      borderRadius: 8,
+      border: page === 'MeasurementHistoryLog' ? '1px solid #fbbf24' : '1px solid rgba(255,255,255,0.12)',
+      background: page === 'MeasurementHistoryLog' ? 'rgba(251,191,36,0.15)' : 'rgba(255,255,255,0.04)',
+      color: page === 'MeasurementHistoryLog' ? '#fde68a' : '#cbd5c9',
+      fontSize: 14,
+      fontWeight: 600,
+      cursor: 'pointer',
+      transition: 'all 0.15s ease',
+    }}
+  >
+    ประวัติการวัดค่า
+  </button>
+</div>
+      </div>
+
+      {page === 'manual' ? (
+        <ManualMeasurement />
+        ) : page === 'ReferenceDataTable' ? (
+          <ReferenceDataTable />
+        ) : page === 'MeasurementHistoryLog' ? (
+          <MeasurementHistoryLog />
+        ) : (
+
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 space-y-6">
         {/* Controls & Quick Action Bar */}
@@ -951,110 +817,13 @@ export default function App() {
 
         {/* Lower Analytics & Alert Logs */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Detailed Analytics Panel */}
-          <div className="lg:col-span-2 bg-[#182b21] border border-[#efead9]/10 rounded-2xl p-5 space-y-4">
-            <div className="flex justify-between items-start border-b border-[#efead9]/10 pb-3">
-              <div>
-                <h2 className="text-lg font-bold font-serif text-[#efead9]">
-                  รายละเอียดวิเคราะห์: {selectedState.def.zone} — {selectedState.def.name}
-                </h2>
-                <p className="text-xs text-[#93a89a]">รหัสเซนเซอร์ #{selectedState.def.id} · เคลือบฟิล์มมาแล้ว {Math.floor(dayCount)} วัน</p>
-              </div>
-              <span className={`text-xs px-3 py-1 rounded-full font-bold border ${selectedStage.bgClass}`}>
-                {selectedStage.full}
-              </span>
-            </div>
+          <BiofilmExtraMetrics 
+            selectedState={selectedState} 
+            dayCount={dayCount}
+          
+          />
 
-            {/* Historic Sparkline Trend */}
-            <div>
-              <div className="text-xs text-[#93a89a] mb-2 flex justify-between">
-                <span>แนวโน้มค่า pH ย้อนหลัง (การเปลี่ยนสีฟิล์ม)</span>
-                <span className="font-mono text-amber-300">pH ปัจจุบัน {selectedState.ph.toFixed(2)}</span>
-              </div>
-              <div className="h-24 bg-[#122119] rounded-xl p-2 relative overflow-hidden border border-[#efead9]/5">
-                <svg className="w-full h-full" preserveAspectRatio="none" viewBox="0 0 300 80">
-                  <defs>
-                    <linearGradient id="lineGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#ea580c" stopOpacity="0.8" />
-                      <stop offset="100%" stopColor="#2e7d32" stopOpacity="0.2" />
-                    </linearGradient>
-                  </defs>
-                  {/* Grid Lines */}
-                  <line x1="0" y1="20" x2="300" y2="20" stroke="rgba(239,234,217,0.05)" strokeWidth="1" />
-                  <line x1="0" y1="40" x2="300" y2="40" stroke="rgba(239,234,217,0.05)" strokeWidth="1" />
-                  <line x1="0" y1="60" x2="300" y2="60" stroke="rgba(239,234,217,0.05)" strokeWidth="1" />
-
-                  {/* Sparkline Path */}
-                  {selectedState.history.length > 1 && (
-                    <polyline
-                      fill="none"
-                      stroke={selectedStage.color}
-                      strokeWidth="3"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      points={selectedState.history
-                        .map((v, idx) => {
-                          const x = (idx / (selectedState.history.length - 1)) * 300;
-                          const y = 80 - ((v - PH_MIN) / (PH_MAX - PH_MIN)) * 80;
-                          return `${x.toFixed(1)},${y.toFixed(1)}`;
-                        })
-                        .join(' ')}
-                    />
-                  )}
-                </svg>
-              </div>
-            </div>
-
-            {/* Biofilm Extra Metrics */}
-            <div className="grid grid-cols-3 gap-3">
-              <div className="bg-[#122119] p-3 rounded-xl border border-[#efead9]/5">
-                <div className="text-[10px] text-[#6c8072] uppercase font-mono">น้ำมันหอมระเหยไล่แมลง</div>
-                <div className="text-lg font-mono font-bold text-emerald-400 mt-1">
-                  {selectedState.essentialOilLevel.toFixed(0)}%
-                </div>
-                <div className="text-[10px] text-[#93a89a] mt-0.5">ปล่อยสารกานพลู/ตะไคร้</div>
-              </div>
-
-              <div className="bg-[#122119] p-3 rounded-xl border border-[#efead9]/5">
-                <div className="text-[10px] text-[#6c8072] uppercase font-mono">โครงสร้างแอนโทไซยานิน</div>
-                <div className="text-lg font-mono font-bold text-amber-300 mt-1">
-                  {selectedState.ph < 3.8 ? 'Flavylium' : selectedState.ph < 4.8 ? 'Quinonoidal' : 'Anionic'}
-                </div>
-                <div className="text-[10px] text-[#93a89a] mt-0.5">สถานะเม็ดสี pH</div>
-              </div>
-
-              <div className="bg-[#122119] p-3 rounded-xl border border-[#efead9]/5">
-                <div className="text-[10px] text-[#6c8072] uppercase font-mono">อัตราการผ่านของก๊าซ</div>
-                <div className="text-lg font-mono font-bold text-teal-300 mt-1">
-                  {selectedState.integrity > 50 ? 'ปกติ (Semi-permeable)' : 'สูงเกินมาตรฐาน'}
-                </div>
-                <div className="text-[10px] text-[#93a89a] mt-0.5">O₂ / CO₂ Exchange</div>
-              </div>
-            </div>
-
-            {/* Biofilm Health Status Box */}
-            <div
-              className={`p-3.5 rounded-xl text-xs leading-relaxed border-l-4 ${
-                selectedState.anomaly
-                  ? 'bg-rose-950/30 border-rose-500 text-rose-200'
-                  : 'bg-[#122119] border-amber-400 text-[#93a89a]'
-              }`}
-            >
-              {selectedState.anomaly ? (
-                <div>
-                  <strong className="text-rose-400 font-bold">⚠️ ตรวจพบความผิดปกติของฟิล์ม: </strong>
-                  มีสัญญาณข้อมูลแกว่งตัวผิดปกติ (ความชื้นสูงขึ้นเฉียบพลัน) สันนิษฐานว่ามีแมลงศัตรูพืชเจาะฟิล์มหรือสปอร์เชื้อราก่อตัว แนะนำให้ตรวจเช็คด้วยตาเปล่าหรือใช้ AI สแกน
-                </div>
-              ) : (
-                <div>
-                  <strong className="text-amber-300 font-bold">✓ สภาพฟิล์มชีวภาพปกติ: </strong>
-                  ฟิล์มไคโตซานคงโครงสร้างแข็งแรง สารระเหยป้องกันแมลงทำงานสมบูรณ์ สารแอนโทไซยานินตอบสนองต่อความเป็นกรด-ด่างตามเส้นโค้งการสุกปกติ
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Alert Log Feed */}
+            {/* Alert Log Feed */}
           <div className="bg-[#182b21] border border-[#efead9]/10 rounded-2xl p-5 flex flex-col h-[420]">
             <div className="border-b border-[#efead9]/10 pb-3 mb-3">
               <h2 className="text-lg font-bold font-serif text-[#efead9]">บันทึกการแจ้งเตือน</h2>
@@ -1088,10 +857,11 @@ export default function App() {
                   </div>
                 ))
               )}
-            </div>
-          </div>
+            </div>            
         </div>
-      </main>
+          </div>
+        </main>
+      )}
 
       {/* Footer Knowledge Note */}
       <footer className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-12 text-center text-xs text-[#6c8072] space-y-2">
@@ -1182,6 +952,8 @@ export default function App() {
                     onClick={() => {
                       setScanMethod('simulated');
                       setAiResult(null);
+                      setSelectedImage(null);
+
                     }}
                     className={`py-2 text-xs font-semibold rounded-lg transition-all flex items-center justify-center gap-1.5 ${
                       scanMethod === 'simulated'
@@ -1193,8 +965,9 @@ export default function App() {
                   </button>
                   <button
                     onClick={() => {
-                      setScanMethod('webcam');
-                      setAiResult(null);
+                          setScanMethod('webcam');
+                          setAiResult(null);
+                          setSelectedImage(null);
                     }}
                     className={`py-2 text-xs font-semibold rounded-lg transition-all flex items-center justify-center gap-1.5 ${
                       scanMethod === 'webcam'
@@ -1208,6 +981,7 @@ export default function App() {
                     onClick={() => {
                       setScanMethod('upload');
                       setAiResult(null);
+                      setSelectedImage(null);
                     }}
                     className={`py-2 text-xs font-semibold rounded-lg transition-all flex items-center justify-center gap-1.5 ${
                       scanMethod === 'upload'
@@ -1232,24 +1006,23 @@ export default function App() {
                   )}
 
                   {/* TAB 2: Webcam Direct Feed */}
-                  {scanMethod === 'webcam' && (
-                    <div className="w-full h-full flex items-center justify-center bg-black z-10 relative">
-                      {cameraError ? (
-                        <div className="text-center p-6 space-y-2">
-                          <span className="text-3xl">⚠️</span>
-                          <div className="text-xs font-bold text-rose-400">{cameraError}</div>
-                          <p className="text-[10px] text-[#6c8072] max-w-xs">ระบบสแกนได้สลับเปิดใช้งานกล้องจำลองอัตโนมัติเพื่อให้คุณสามารถทำการสแกนผลไม้เสมือนจริงได้อย่างสมบูรณ์แบบ</p>
-                        </div>
-                      ) : (
+                  <AIScannerModal
+                    videoRef={videoRef}
+                    cameraError={cameraError}
+                    scanMethod={scanMethod}
+                  />
+
+                  {/* TAB 3: File Upload Area */}
+                  {/* TAB 3: File Upload Area */}
+                  {scanMethod === 'upload' && (
+                    <div className="w-full h-full flex items-center justify-center bg-[#0d1612] z-30 relative">
+                      {selectedImage ? (
                         <>
-                          <video
-                            ref={videoRef}
-                            autoPlay
-                            playsInline
-                            muted
-                            className="w-full h-full object-cover"
-                          />
-                          {/* Webcam Viewfinder Bracket Overlays */}
+                          <img src={selectedImage} alt="Uploaded preview" className="w-full h-full object-contain" />
+
+                          {/* HUD Overlay เหมือน TAB 2 */}
+                          <div className="absolute inset-0 grid-overlay-bg pointer-events-none z-10"></div>
+
                           <div className="absolute inset-4 border border-[#efead9]/15 rounded-lg pointer-events-none flex items-center justify-center">
                             <div className="w-10 h-10 border-t-2 border-l-2 border-emerald-500 absolute top-0 left-0"></div>
                             <div className="w-10 h-10 border-t-2 border-r-2 border-emerald-500 absolute top-0 right-0"></div>
@@ -1257,16 +1030,18 @@ export default function App() {
                             <div className="w-10 h-10 border-b-2 border-r-2 border-emerald-500 absolute bottom-0 right-0"></div>
                             <div className="w-12 h-12 rounded-full border border-dashed border-emerald-500/40 animate-spin-slow"></div>
                           </div>
-                        </>
-                      )}
-                    </div>
-                  )}
 
-                  {/* TAB 3: File Upload Area */}
-                  {scanMethod === 'upload' && (
-                    <div className="w-full h-full flex items-center justify-center bg-[#0d1612] z-10 relative">
-                      {selectedImage ? (
-                        <img src={selectedImage} alt="Uploaded preview" className="w-full h-full object-contain" />
+                          {/* ปุ่มเปลี่ยนรูปมุมบนขวา */}
+                          <button
+                            onClick={() => {
+                              setSelectedImage(null);
+                              if (fileInputRef.current) fileInputRef.current.value = '';
+                            }}
+                            className="absolute top-3 right-3 z-50 text-xs bg-black/60 hover:bg-black/80 text-white px-3 py-1.5 rounded-lg transition-all pointer-events-auto"
+                          >
+                            ✕ เปลี่ยนรูป
+                          </button>
+                        </>
                       ) : (
                         <div
                           onClick={() => fileInputRef.current?.click()}
@@ -1279,11 +1054,11 @@ export default function App() {
                             accept="image/*"
                             className="hidden"
                           />
-                          <div className="w-12 h-12 rounded-full bg-[#182b21] flex items-center justify-center text-emerald-400 border border-emerald-500/20 group-hover:scale-105 transition-all">
-                            📥
+                          <div className="w-12 h-12 rounded-full bg-[#182b21] flex items-center justify-center text-emerald-400 border border-emerald-500/20 group-hover:scale-105 transition">
+                            📁
                           </div>
-                          <div className="text-xs font-bold text-[#efead9]">คลิกเพื่ออัปโหลดภาพผลไม้จริง</div>
-                          <p className="text-[10px] text-[#6c8072]">รองรับไฟล์ภาพสกุล JPEG, PNG เพื่อให้ AI สแกนสีฟิล์ม</p>
+                          <div className="text-xs font-bold text-[#efead9]">คลิกเพื่ออัปโหลดภาพผลไม้</div>
+                          <p className="text-[10px] text-[#6c8072]">รองรับไฟล์ภาพสกุล JPEG, PNG เพื่อให้ AI สแกนฟิล์ม</p>
                         </div>
                       )}
                     </div>
