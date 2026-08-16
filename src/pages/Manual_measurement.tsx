@@ -1,9 +1,9 @@
 import React, { useState } from "react";
 
 const INITIAL_ZONES = [
-  { id: "A", name: "มะม่วง", simPh: 5.05, status: "สุกเกิน/เน่า", color: "#a855f7", temp: 28.9, humidity: 62, filmIntegrity: 100 },
-  { id: "B", name: "กล้วย", simPh: 6.16, status: "สุกเกิน/เน่า", color: "#a855f7", temp: 27.2, humidity: 65, filmIntegrity: 100 },
-  { id: "C", name: "มะละกอ", simPh: 6.18, status: "สุกเกิน/เน่า", color: "#a855f7", temp: 28.0, humidity: 60, filmIntegrity: 100 },
+  { id: "A", name: "ฝรั่ง", simPh: 5.05, status: "สุกเกิน/เน่า", color: "#a855f7", temp: 28.9, humidity: 62, filmIntegrity: 100 },
+  { id: "B", name: "ฝรั่ง", simPh: 6.16, status: "สุกเกิน/เน่า", color: "#a855f7", temp: 27.2, humidity: 65, filmIntegrity: 100 },
+  { id: "C", name: "ฝรั่ง", simPh: 6.18, status: "สุกเกิน/เน่า", color: "#a855f7", temp: 28.0, humidity: 60, filmIntegrity: 100 },
   { id: "D", name: "ฝรั่ง", simPh: 4.81, status: "สุกพอดี", color: "#f97316", temp: 26.5, humidity: 58, filmIntegrity: 100 },
 ];
 

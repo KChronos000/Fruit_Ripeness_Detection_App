@@ -85,6 +85,12 @@ export default function App() {
   const [scanProgressText, setScanProgressText] = useState<string>('');
   const [selectedHotspot, setSelectedHotspot] = useState<'ph' | 'integrity' | 'oil' | null>(null);
 
+    // Manual optional context fields (AI มองไม่เห็นจากภาพ)
+  const [manualZone, setManualZone] = useState<string>('');
+  const [manualTemp, setManualTemp] = useState<string>('');
+  const [manualHumidity, setManualHumidity] = useState<string>('');
+  const [showManualFields, setShowManualFields] = useState<boolean>(false);
+
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const webcamStreamRef = useRef<MediaStream | null>(null);
@@ -451,8 +457,12 @@ function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
       return;
     }
 
-    const result = await analyzeFilmWithAI(base64);
-    setAiResult(result);
+    const result = await analyzeFilmWithAI(base64, {
+    zone: manualZone || undefined,
+    temperature: manualTemp || undefined,
+    humidity: manualHumidity || undefined,
+  });
+setAiResult(result);
 
   } catch (err) {
   console.error(err);
@@ -1013,7 +1023,6 @@ function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
                   />
 
                   {/* TAB 3: File Upload Area */}
-                  {/* TAB 3: File Upload Area */}
                   {scanMethod === 'upload' && (
                     <div className="w-full h-full flex items-center justify-center bg-[#0d1612] z-30 relative">
                       {selectedImage ? (
@@ -1151,9 +1160,9 @@ function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
                       <label className="text-[10px] font-mono tracking-wider uppercase text-[#93a89a]">สารตั้งต้นแบบจำลอง (Target Biomaterial Matrix):</label>
                       <div className="grid grid-cols-4 gap-1.5">
                         {[
-                          { id: 'mango', label: '🥭 มะม่วง', color: 'border-amber-500/30 text-amber-300' },
-                          { id: 'banana', label: '🍌 กล้วย', color: 'border-yellow-500/30 text-yellow-300' },
-                          { id: 'papaya', label: '🍈 มะละกอ', color: 'border-orange-500/30 text-orange-400' },
+                          // { id: 'mango', label: '🥭 มะม่วง', color: 'border-amber-500/30 text-amber-300' },
+                          // { id: 'banana', label: '🍌 กล้วย', color: 'border-yellow-500/30 text-yellow-300' },
+                          // { id: 'papaya', label: '🍈 มะละกอ', color: 'border-orange-500/30 text-orange-400' },
                           { id: 'guava', label: '🥝 ฝรั่ง', color: 'border-emerald-500/30 text-emerald-300' },
                         ].map((btn) => (
                           <button
@@ -1182,8 +1191,8 @@ function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
                       <div className="text-[10px] font-mono tracking-wider uppercase text-[#93a89a]">หรือดึงฐานข้อมูลรูปภาพตัวอย่างทดสอบ:</div>
                       <div className="flex gap-2 flex-wrap">
                         {[
-                          { label: '🥭 มะม่วงสีฟิล์มเหลือง', img: 'https://images.unsplash.com/photo-1553279768-865429fa0078?w=400&q=80' },
-                          { label: '🍌 กล้วยสีฟิล์มส้มเหลือง', img: 'https://images.unsplash.com/photo-1571771894821-ce9b6c11b08e?w=400&q=80' },
+                          // { label: '🥭 มะม่วงสีฟิล์มเหลือง', img: 'https://images.unsplash.com/photo-1553279768-865429fa0078?w=400&q=80' },
+                          // { label: '🍌 กล้วยสีฟิล์มส้มเหลือง', img: 'https://images.unsplash.com/photo-1571771894821-ce9b6c11b08e?w=400&q=80' },
                           { label: '🍈 ฝรั่งสีฟิล์มเขียวสด', img: 'https://images.unsplash.com/photo-1528825871115-3581a5387919?w=400&q=80' },
                         ].map((preset, idx) => (
                           <button
@@ -1201,6 +1210,55 @@ function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
                       </div>
                     </div>
                   )}
+
+                  {/* Optional Manual Context Fields */}
+                  <div className="space-y-1.5">
+                    <button
+                      type="button"
+                      onClick={() => setShowManualFields((v) => !v)}
+                      className="w-full flex items-center justify-between text-[10px] font-mono tracking-wider uppercase text-[#93a89a] hover:text-emerald-300 transition cursor-pointer"
+                    >
+                      <span>ข้อมูลเสริม (ไม่บังคับ): โซน / อุณหภูมิ / ความชื้น</span>
+                      <span>{showManualFields ? '▲' : '▼'}</span>
+                    </button>
+
+                    {showManualFields && (
+                      <div className="grid grid-cols-3 gap-2 bg-[#122119] border border-emerald-500/10 rounded-xl p-2.5">
+                        <div className="space-y-1">
+                          <label className="text-[9px] text-[#6c8072] uppercase">โซน</label>
+                          <input
+                            type="text"
+                            value={manualZone}
+                            onChange={(e) => setManualZone(e.target.value)}
+                            placeholder="เช่น โซน A"
+                            className="w-full bg-[#0d1612] border border-emerald-500/20 rounded-lg px-2 py-1.5 text-[11px] text-[#efead9] placeholder:text-[#6c8072] focus:outline-none focus:border-emerald-400"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[9px] text-[#6c8072] uppercase">อุณหภูมิ (°C)</label>
+                          <input
+                            type="number"
+                            step="0.1"
+                            value={manualTemp}
+                            onChange={(e) => setManualTemp(e.target.value)}
+                            placeholder="29.9"
+                            className="w-full bg-[#0d1612] border border-emerald-500/20 rounded-lg px-2 py-1.5 text-[11px] text-[#efead9] placeholder:text-[#6c8072] focus:outline-none focus:border-emerald-400"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[9px] text-[#6c8072] uppercase">ความชื้น (%)</label>
+                          <input
+                            type="number"
+                            step="1"
+                            value={manualHumidity}
+                            onChange={(e) => setManualHumidity(e.target.value)}
+                            placeholder="64"
+                            className="w-full bg-[#0d1612] border border-emerald-500/20 rounded-lg px-2 py-1.5 text-[11px] text-[#efead9] placeholder:text-[#6c8072] focus:outline-none focus:border-emerald-400"
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
 
                   {/* Trigger SCAN Action Button */}
                   <button
@@ -1253,7 +1311,7 @@ function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
                     <div className="space-y-1.5">
                       <h4 className="text-sm font-bold font-serif text-emerald-400">ระบบ AI กำลังถอดรหัสพันธะเคมี...</h4>
                       <p className="text-xs text-[#93a89a] max-w-sm">
-                        กำลังดึงค่าเฉดสีแอนโทไซยานิน วิเคราะห์ปริมาณน้ำมันหอมระเหยกานพลู-ตะไคร้ และเชื่อมต่อกับโครงงานระบบ FreshGuard Biosensor
+                        กำลังดึงค่าเฉดสีแอนโทไซยานิน วิเคราะห์ปริมาณน้ำมันหอมระเหย-ตะไคร้ และเชื่อมต่อกับโครงงานระบบ FreshGuard Biosensor
                       </p>
                     </div>
                   </div>
@@ -1365,7 +1423,7 @@ function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
 
                       <div className="space-y-1 pt-1">
                         <div className="flex justify-between text-[11px] font-medium text-[#efead9]">
-                          <span>สารไล่แมลงและน้ำมันหอมระเหยตะไคร้-กานพลู (Essential Oils):</span>
+                          <span>สารไล่แมลงและน้ำมันหอมระเหยตะไคร้ (Essential Oils):</span>
                           <span className="font-mono text-amber-300 font-bold">{aiResult.essentialOilLevel}%</span>
                         </div>
                         <div className="w-full h-2 bg-[#122119] rounded-full overflow-hidden p-0.5 border border-emerald-500/5">
@@ -1442,7 +1500,7 @@ function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
                         <p className="text-[11px] text-[#93a89a]">
                           {selectedHotspot === 'ph' && `การเหนี่ยวนำด้วยลำแสงเลเซอร์ ตรวจวัดปฏิกิริยาเคมีของเฉดสีแอนโทไซยานินธรรมชาติที่สกัดจากกะหล่ำปลีม่วงหรืออัญชัน ผลลัพธ์บ่งบอกความเป็นกรด-ด่างที่ค่า pH ${aiResult.phEstimate.toFixed(2)} (${aiResult.stageName}) ปฏิกิริยามีเฉดสีสะท้อนที่ยอดเยี่ยม`}
                           {selectedHotspot === 'integrity' && `Chitosan-Starch Biofilm โครงสร้างระดับจุลภาคของฟิล์มชั้นกลาง ช่วยปกป้องเปลือกผลไม้ไม่ให้คายน้ำ ยับยั้งการเจริญเติบโตของเชื้อจุลินทรีย์ ตรวจวิเคราะห์ความสมบูรณ์ได้ ${aiResult.filmIntegrity}% ป้องกันการคายน้ำได้ดีเยี่ยม`}
-                          {selectedHotspot === 'oil' && `จุดล็อคการระเหยของ Volatile Essential Oil (สารกานพลูและตะไคร้หอม) มีความเข้มข้นสัมบูรณ์ ${aiResult.essentialOilLevel}% ช่วยส่งกลิ่นไล่เพลี้ยแป้ง หนอนกวน และแมลงวันทองได้อย่างเสถียร โดยไม่ต้องใช้สารเคมีฆ่าแมลงอันตราย`}
+                          {selectedHotspot === 'oil' && `จุดล็อคการระเหยของ Volatile Essential Oil (สารตะไคร้หอม) มีความเข้มข้นสัมบูรณ์ ${aiResult.essentialOilLevel}% ช่วยส่งกลิ่นไล่เพลี้ยแป้ง หนอนกวน และแมลงวันทองได้อย่างเสถียร โดยไม่ต้องใช้สารเคมีฆ่าแมลงอันตราย`}
                         </p>
                       </div>
                     ) : (

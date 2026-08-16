@@ -63,7 +63,7 @@ const BiofilmExtraMetrics = ({ selectedState, dayCount }: { selectedState: any; 
                 <div className="text-lg font-mono font-bold text-emerald-400 mt-1">
                   {selectedState.essentialOilLevel.toFixed(0)}%
                 </div>
-                <div className="text-[10px] text-[#93a89a] mt-0.5">ปล่อยสารกานพลู/ตะไคร้</div>
+                <div className="text-[10px] text-[#93a89a] mt-0.5">ปล่อยสารตะไคร้</div>
               </div>
 
               <div className="bg-[#122119] p-3 rounded-xl border border-[#efead9]/5">

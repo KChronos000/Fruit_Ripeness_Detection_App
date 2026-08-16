@@ -15,9 +15,9 @@ type LogEntry = {
 };
 
 const ZONES: { id: string; fruit: string }[] = [
-  { id: "A", fruit: "มะม่วง" },
-  { id: "B", fruit: "กล้วย" },
-  { id: "C", fruit: "มะละกอ" },
+  { id: "A", fruit: "ฝรั่ง" },
+  { id: "B", fruit: "ฝรั่ง" },
+  { id: "C", fruit: "ฝรั่ง" },
   { id: "D", fruit: "ฝรั่ง" },
 ];
 
