@@ -1193,7 +1193,7 @@ setAiResult(result);
                         {[
                           // { label: '🥭 มะม่วงสีฟิล์มเหลือง', img: 'https://images.unsplash.com/photo-1553279768-865429fa0078?w=400&q=80' },
                           // { label: '🍌 กล้วยสีฟิล์มส้มเหลือง', img: 'https://images.unsplash.com/photo-1571771894821-ce9b6c11b08e?w=400&q=80' },
-                          { label: '🍈 ฝรั่งสีฟิล์มเขียวสด', img: 'https://images.unsplash.com/photo-1528825871115-3581a5387919?w=400&q=80' },
+                          { label: '🍈 ฝรั่งสีฟิล์ม', img: 'https://images.unsplash.com/photo-1528825871115-3581a5387919?w=400&q=80' },
                         ].map((preset, idx) => (
                           <button
                             key={idx}
