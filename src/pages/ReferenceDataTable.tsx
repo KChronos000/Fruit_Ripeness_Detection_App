@@ -34,7 +34,7 @@ const INITIAL_DATA = [
   {
     id: 3,
     fruit: "ฝรั่ง",
-    stage: "สุกงอม",
+    stage: "กำลังสุก",
     phMin: 5.5,
     phMax: 6.0,
     source: "Postharvest quality and biochemical changes of guava fruit during ripening",
