@@ -1534,31 +1534,103 @@ setAiResult(result);
             </div>
 
             <div className="space-y-4 text-xs leading-relaxed text-[#efead9]/90">
+              {/* โครงสร้างฟิล์มชีวภาพ 2 ชั้น (ฟิล์มชั้นนอก และ ฟิล์มชั้นใน) */}
               <div className="bg-[#122119] p-4 rounded-xl border border-amber-500/20 space-y-2">
-                <h4 className="font-bold text-amber-300 font-serif text-sm">โครงสร้างฟิล์มชีวภาพ 3 ชั้น (Triple Action Biofilm)</h4>
+                <h4 className="font-bold text-amber-300 font-serif text-sm">
+                  โครงสร้างฟิล์มชีวภาพ (Biofilm Structure)
+                </h4>
                 <ul className="list-disc list-inside space-y-1 text-[#93a89a]">
-                  <li><strong className="text-[#efead9]">ชั้นนอก (ป้องกันแมลง):</strong> ผสมน้ำมันหอมระเหยไล่แมลงวันทองและศัตรูพืช</li>
-                  <li><strong className="text-[#efead9]">ชั้นกลาง (เกราะป้องกัน):</strong> โครงสร้างไคโตซาน + แป้ง + กลีเซอรอล ยับยั้งเชื้อรา ยืดหยุ่น ไม่แตกร้าว</li>
-                  <li><strong className="text-[#efead9]">ชั้นใน (บ่งชี้ความสุก):</strong> สารสกัดแอนโทไซยานิน เปลี่ยนสีตามค่า pH และความสุก</li>
+                  <li>
+                    <strong className="text-[#efead9]">ฟิล์มเคลือบชั้นนอก:</strong>{" "}
+                    ผสมผสาน Chitosan, Starch, Glycerol, Microcapsule และน้ำมันหอมระเหย
+                    พร้อมเจาะรูพรุนขนาดเล็กเพื่อแลกเปลี่ยนก๊าซและลดความชื้น
+                  </li>
+                  <li>
+                    <strong className="text-[#efead9]">ฟิล์มชั้นใน:</strong>{" "}
+                    ใช้สารสกัด Anthocyanin จากดอกอัญชัน บ่งชี้การเปลี่ยนแปลงของ pH
+                    เพื่อติดตามความสด การสุก หรือการเสื่อมคุณภาพของผลไม้
+                  </li>
                 </ul>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="bg-[#122119] p-3 rounded-xl space-y-1">
-                  <div className="font-bold text-emerald-400">1. ไคโตซาน (Chitosan)</div>
-                  <p className="text-[#6c8072]">ยับยั้งเชื้อแบคทีเรียและเชื้อรา ย่อยสลายได้ทางชีวภาพ ยืดอายุการเก็บรักษา</p>
+              {/* รายละเอียดส่วนประกอบ Ingredients */}
+              <div className="space-y-2">
+                <h5 className="font-bold text-amber-300 font-serif text-xs">
+                  Ingredients ฟิล์มเคลือบชั้นนอก
+                </h5>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="bg-[#122119] p-3 rounded-xl space-y-1">
+                    <div className="font-bold text-emerald-400">1. Chitosan</div>
+                    <p className="text-[#6c8072]">
+                      มาจากเปลือกกุ้ง ใช้เป็นโครงสร้างหลักของฟิล์ม
+                      และช่วยเพิ่มความสามารถในการสร้างฟิล์ม
+                      รวมถึงมีคุณสมบัติในการต้านจุลินทรีย์
+                    </p>
+                  </div>
+
+                  <div className="bg-[#122119] p-3 rounded-xl space-y-1">
+                    <div className="font-bold text-emerald-400">2. Starch</div>
+                    <p className="text-[#6c8072]">
+                      เลือกใช้แป้งมันสำปะหลัง
+                      เพื่อเพิ่มความสามารถในการขึ้นรูปฟิล์มและช่วยเสริมโครงสร้างของ Chitosan
+                      โดยเป็นวัสดุชีวภาพที่ย่อยสลายได้
+                    </p>
+                  </div>
+
+                  <div className="bg-[#122119] p-3 rounded-xl space-y-1">
+                    <div className="font-bold text-emerald-400">3. Glycerol</div>
+                    <p className="text-[#6c8072]">
+                      ทำหน้าที่ช่วยเพิ่มความยืดหยุ่นของฟิล์ม ลดความเปราะ
+                      และช่วยให้ฟิล์มสามารถโค้งงอตารมผิวผลไม้ได้
+                    </p>
+                  </div>
+
+                  <div className="bg-[#122119] p-3 rounded-xl space-y-1">
+                    <div className="font-bold text-emerald-400">4. Microcapsule</div>
+                    <p className="text-[#6c8072]">
+                      ใช้วัสดุ Sodium alginate
+                      ซึ่งเป็นพอลิเมอร์จากธรรมชาติที่สกัดจากสาหร่ายสีน้ำตาล
+                      เพื่อควบคุมการปลดปล่อยสารออกฤทธิ์จากน้ำมันหอมระเหยในการไล่แมลง
+                      และยังเก็บรักษากลิ่นได้นาน
+                    </p>
+                  </div>
+
+                  <div className="bg-[#122119] p-3 rounded-xl space-y-1">
+                    <div className="font-bold text-emerald-400">
+                      5. น้ำมันหอมระเหยจากตะไคร้หอม
+                    </div>
+                    <p className="text-[#6c8072]">
+                      เพื่อช่วยยับยั้งจุลินทรีย์และช่วยป้องกันการเข้าทำลายของแมลง
+                      โดยการกักเก็บใน microcapsule
+                      ช่วยให้เกิดการปลดปล่อยสารอย่างค่อยเป็นค่อยไป
+                    </p>
+                  </div>
+
+                  <div className="bg-[#122119] p-3 rounded-xl space-y-1 border border-emerald-500/30">
+                    <div className="font-bold text-emerald-400">
+                      6. โครงสร้าง Matrix และรูพรุน (Micro-porous)
+                    </div>
+                    <p className="text-[#6c8072]">
+                      microcapsule ที่กระจายอยู่ในตัว matrix ของฟิล์ม
+                      และการเจาะรูพรุนขนาดเล็กบริเวณชั้นนี้
+                      เพื่อให้อากาศสามารถแลกเปลี่ยนผ่านฟิล์มได้ ลดการกักเก็บความชื้นภายใน
+                      และช่วยให้ผลไม้สามารถแลกเปลี่ยนก๊าซได้
+                    </p>
+                  </div>
                 </div>
+              </div>
+
+              <div className="space-y-2">
+                <h5 className="font-bold text-amber-300 font-serif text-xs">
+                  Ingredients ฟิล์มชั้นใน
+                </h5>
                 <div className="bg-[#122119] p-3 rounded-xl space-y-1">
-                  <div className="font-bold text-emerald-400">2. แป้ง (Starch)</div>
-                  <p className="text-[#6c8072]">เพิ่มความแข็งแรง โครงสร้างฟิล์มแน่นหนา ลดต้นทุนการผลิต</p>
-                </div>
-                <div className="bg-[#122119] p-3 rounded-xl space-y-1">
-                  <div className="font-bold text-emerald-400">3. กลีเซอรอล (Glycerol)</div>
-                  <p className="text-[#6c8072]">เพิ่มความยืดหยุ่น รองรับการขยายตัวของผลไม้ระหว่างเจริญเติบโต</p>
-                </div>
-                <div className="bg-[#122119] p-3 rounded-xl space-y-1">
-                  <div className="font-bold text-emerald-400">4. แอนโทไซยานิน (Anthocyanin)</div>
-                  <p className="text-[#6c8072]">สารสีธรรมชาติ เปลี่ยนสีตามระดับกรด-ด่าง เพื่อแจ้งเตือนความสุก/เน่าเสีย</p>
+                  <div className="font-bold text-emerald-400">1. Anthocyanin</div>
+                  <p className="text-[#6c8072]">
+                    จากสารสกัดของดอกอัญชัน เพื่อทำหน้าที่เป็นตัวบ่งชี้การเปลี่ยนแปลงของ pH
+                    โดยสามารถเปลี่ยนสีเมื่อสภาพแวดล้อมเปลี่ยนแปลง
+                    จึงใช้ติดตามความสดหรือการสุก/เสื่อมคุณภาพของผลไม้ได้
+                  </p>
                 </div>
               </div>
             </div>
