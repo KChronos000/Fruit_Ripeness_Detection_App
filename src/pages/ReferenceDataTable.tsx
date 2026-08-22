@@ -10,9 +10,7 @@ type FruitRow = {
   link: string;
 };
 
-
-
-const INITIAL_DATA = [
+const INITIAL_DATA: FruitRow[] = [
   {
     id: 1,
     fruit: "ฝรั่ง",
@@ -54,31 +52,34 @@ const INITIAL_DATA = [
 let nextId = 6;
 
 export default function ReferenceDataTable() {
+  const [rows, setRows] = useState<FruitRow[]>(INITIAL_DATA);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [draft, setDraft] = useState<FruitRow | null>(null);
 
-const [rows, setRows] = useState<FruitRow[]>(INITIAL_DATA);
-const [editingId, setEditingId] = useState<number | null>(null);
-const [draft, setDraft] = useState<FruitRow | null>(null);
+  const startEdit = (row: FruitRow) => {
+    setEditingId(row.id);
+    setDraft({ ...row });
+  };
 
-    const startEdit = (row: FruitRow) => {
-        setEditingId(row.id);
-        setDraft({ ...row });
-    };
-    const saveEdit = () => {
-        setRows((prev) => prev.map((r) => (r.id === editingId && draft ? draft : r)));    setEditingId(null);
-        setDraft(null);
-    };
+  const saveEdit = () => {
+    if (draft) {
+      setRows((prev) => prev.map((r) => (r.id === editingId ? draft : r)));
+    }
+    setEditingId(null);
+    setDraft(null);
+  };
 
-    const cancelEdit = () => {
-        setEditingId(null);
-        setDraft(null);
-    };
+  const cancelEdit = () => {
+    setEditingId(null);
+    setDraft(null);
+  };
 
-    const deleteRow = (id: number) => {
-        setRows((prev) => prev.filter((r) => r.id !== id));
-    };
+  const deleteRow = (id: number) => {
+    setRows((prev) => prev.filter((r) => r.id !== id));
+  };
 
   const addRow = () => {
-    const newRow = {
+    const newRow: FruitRow = {
       id: nextId++,
       fruit: "ผลไม้ใหม่",
       stage: "ดิบ",
@@ -98,14 +99,27 @@ const [draft, setDraft] = useState<FruitRow | null>(null);
         background: "#0d1a12",
         color: "#e8f0ea",
         fontFamily: "'IBM Plex Sans Thai', 'Noto Sans Thai', sans-serif",
-        padding: "24px",
+        padding: "16px",
+        boxSizing: "border-box",
       }}
     >
       <div style={{ maxWidth: 1100, margin: "0 auto" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-          <div>
-            <h1 style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>ตารางอ้างอิงค่า pH มาตรฐาน</h1>
-            <p style={{ fontSize: 13, color: "#8fae9b", margin: "4px 0 0" }}>
+        {/* Header Section */}
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "flex-start",
+            gap: "12px",
+            flexWrap: "wrap",
+            marginBottom: 16,
+          }}
+        >
+          <div style={{ flex: "1 1 200px" }}>
+            <h1 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>
+              ตารางอ้างอิงค่า pH มาตรฐาน
+            </h1>
+            <p style={{ fontSize: 13, color: "#8fae9b", margin: "4px 0 0", lineHeight: 1.4 }}>
               ค่า pH ของผลไม้แต่ละชนิดตามระยะสุก อ้างอิงจากงานวิจัย — แก้ไข/เพิ่มข้อมูลได้
             </p>
           </div>
@@ -114,22 +128,31 @@ const [draft, setDraft] = useState<FruitRow | null>(null);
           </button>
         </div>
 
+        {/* Scrollable Container สำหรับตารางในหน้าจอมือถือ */}
         <div
           style={{
-            marginTop: 18,
+            marginTop: 12,
             border: "1px solid #1e3a26",
             borderRadius: 14,
-            overflow: "hidden",
+            overflowX: "auto", // อนุญาตให้เลื่อนแนวนอนถ้าจอมือถือแคบ
+            WebkitOverflowScrolling: "touch",
           }}
         >
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+          <table
+            style={{
+              width: "100%",
+              minWidth: "640px", // กำหนดความกว้างขั้นต่ำเพื่อไม่ให้คอลัมน์ซ้อนกันเบียดแน่นเกินไป
+              borderCollapse: "collapse",
+              fontSize: 13,
+            }}
+          >
             <thead>
               <tr style={{ background: "#132a1c", textAlign: "left" }}>
-                <th style={thStyle}>ผลไม้</th>
-                <th style={thStyle}>ระยะสุก</th>
-                <th style={thStyle}>ช่วง pH</th>
-                <th style={thStyle}>แหล่งอ้างอิง</th>
-                <th style={thStyle}></th>
+                <th style={{ ...thStyle, width: "15%" }}>ผลไม้</th>
+                <th style={{ ...thStyle, width: "15%" }}>ระยะสุก</th>
+                <th style={{ ...thStyle, width: "18%" }}>ช่วง pH</th>
+                <th style={{ ...thStyle, width: "37%" }}>แหล่งอ้างอิง</th>
+                <th style={{ ...thStyle, width: "15%", textAlign: "right" }}></th>
               </tr>
             </thead>
             <tbody>
@@ -137,19 +160,19 @@ const [draft, setDraft] = useState<FruitRow | null>(null);
                 const isEditing = editingId === row.id;
                 return (
                   <tr key={row.id} style={{ borderTop: "1px solid #1e3a26" }}>
-                    {isEditing ? (
+                    {isEditing && draft ? (
                       <>
                         <td style={tdStyle}>
                           <input
-                            value={draft!.fruit}
-                            onChange={(e) => setDraft({ ...draft!, phMin: parseFloat(e.target.value) })}
+                            value={draft.fruit}
+                            onChange={(e) => setDraft({ ...draft, fruit: e.target.value })}
                             style={cellInputStyle}
                           />
                         </td>
                         <td style={tdStyle}>
                           <select
-                            value={draft!.stage}
-                            onChange={(e) => setDraft({ ...draft!, phMax: parseFloat(e.target.value) })}
+                            value={draft.stage}
+                            onChange={(e) => setDraft({ ...draft, stage: e.target.value })}
                             style={cellInputStyle}
                           >
                             <option>ดิบ</option>
@@ -163,35 +186,39 @@ const [draft, setDraft] = useState<FruitRow | null>(null);
                             <input
                               type="number"
                               step="0.01"
-                              value={draft!.phMin}
-                              onChange={(e) => setDraft({ ...draft!, source: e.target.value })}
-                              style={{ ...cellInputStyle, width: 60 }}
+                              value={draft.phMin}
+                              onChange={(e) =>
+                                setDraft({ ...draft, phMin: parseFloat(e.target.value) || 0 })
+                              }
+                              style={{ ...cellInputStyle, width: 55 }}
                             />
                             <span style={{ color: "#8fae9b" }}>–</span>
                             <input
                               type="number"
                               step="0.01"
-                              value={draft!.phMax}
-                              onChange={(e) => setDraft({ ...draft!, link: e.target.value })}
-                              style={{ ...cellInputStyle, width: 60 }}
+                              value={draft.phMax}
+                              onChange={(e) =>
+                                setDraft({ ...draft, phMax: parseFloat(e.target.value) || 0 })
+                              }
+                              style={{ ...cellInputStyle, width: 55 }}
                             />
                           </div>
                         </td>
                         <td style={tdStyle}>
                           <input
                             placeholder="ชื่องานวิจัย"
-                            value={draft!.source}
-                            onChange={(e) => setDraft({ ...draft!, fruit: e.target.value })}
+                            value={draft.source}
+                            onChange={(e) => setDraft({ ...draft, source: e.target.value })}
                             style={{ ...cellInputStyle, marginBottom: 4 }}
                           />
                           <input
                             placeholder="ลิงก์ / DOI"
-                            value={draft!.link}
-                            onChange={(e) => setDraft({ ...draft!, stage: e.target.value })}
+                            value={draft.link}
+                            onChange={(e) => setDraft({ ...draft, link: e.target.value })}
                             style={cellInputStyle}
                           />
                         </td>
-                        <td style={{ ...tdStyle, whiteSpace: "nowrap" }}>
+                        <td style={{ ...tdStyle, whiteSpace: "nowrap", textAlign: "right" }}>
                           <button onClick={saveEdit} style={saveBtnStyle}>
                             บันทึก
                           </button>
@@ -206,7 +233,7 @@ const [draft, setDraft] = useState<FruitRow | null>(null);
                         <td style={tdStyle}>
                           <span style={stageBadgeStyle(row.stage)}>{row.stage}</span>
                         </td>
-                        <td style={tdStyle}>
+                        <td style={{ ...tdStyle, whiteSpace: "nowrap" }}>
                           {row.phMin.toFixed(2)} – {row.phMax.toFixed(2)}
                         </td>
                         <td style={tdStyle}>
@@ -215,17 +242,26 @@ const [draft, setDraft] = useState<FruitRow | null>(null);
                               href={row.link}
                               target="_blank"
                               rel="noreferrer"
-                              style={{ color: "#7fd99a", textDecoration: "none" }}
+                              style={{
+                                color: "#7fd99a",
+                                textDecoration: "none",
+                                wordBreak: "break-word",
+                              }}
                             >
                               {row.source}
                             </a>
                           ) : (
-                            <span style={{ color: row.source ? "#e8f0ea" : "#c05656" }}>
+                            <span
+                              style={{
+                                color: row.source.includes("ยังไม่มี") ? "#c05656" : "#e8f0ea",
+                                wordBreak: "break-word",
+                              }}
+                            >
                               {row.source || "ยังไม่มีแหล่งอ้างอิง"}
                             </span>
                           )}
                         </td>
-                        <td style={{ ...tdStyle, whiteSpace: "nowrap" }}>
+                        <td style={{ ...tdStyle, whiteSpace: "nowrap", textAlign: "right" }}>
                           <button onClick={() => startEdit(row)} style={editBtnStyle}>
                             แก้ไข
                           </button>
@@ -242,7 +278,7 @@ const [draft, setDraft] = useState<FruitRow | null>(null);
           </table>
         </div>
 
-        <p style={{ fontSize: 11, color: "#5c7566", marginTop: 12 }}>
+        <p style={{ fontSize: 11, color: "#5c7566", marginTop: 12, lineHeight: 1.4 }}>
           หมายเหตุ: ข้อมูลเริ่มต้นบางส่วนเป็นค่าประมาณจากงานวิจัยที่เกี่ยวข้อง ควรตรวจสอบและอัปเดตให้ตรงกับงานวิจัยที่ใช้อ้างอิงจริงในรายงาน
         </p>
       </div>
@@ -250,7 +286,7 @@ const [draft, setDraft] = useState<FruitRow | null>(null);
   );
 }
 
-function stageBadgeStyle(stage: string) {
+function stageBadgeStyle(stage: string): React.CSSProperties {
   const map: Record<string, { bg: string; color: string }> = {
     "ดิบ": { bg: "#1e3a26", color: "#7fd99a" },
     "กำลังสุก": { bg: "#4d3b1a", color: "#facc15" },
@@ -265,11 +301,23 @@ function stageBadgeStyle(stage: string) {
     fontWeight: 700,
     padding: "3px 8px",
     borderRadius: 999,
+    display: "inline-block",
+    whiteSpace: "nowrap",
   };
 }
 
-const thStyle = { padding: "10px 14px", fontSize: 12, color: "#8fae9b", fontWeight: 600 };
-const tdStyle = { padding: "10px 14px", verticalAlign: "top" };
+const thStyle: React.CSSProperties = {
+  padding: "10px 12px",
+  fontSize: 12,
+  color: "#8fae9b",
+  fontWeight: 600,
+};
+
+const tdStyle: React.CSSProperties = {
+  padding: "10px 12px",
+  verticalAlign: "middle",
+};
+
 const cellInputStyle: React.CSSProperties = {
   width: "100%",
   boxSizing: "border-box",
@@ -280,17 +328,20 @@ const cellInputStyle: React.CSSProperties = {
   color: "#e8f0ea",
   fontSize: 12,
 };
-const addBtnStyle = {
+
+const addBtnStyle: React.CSSProperties = {
   background: "#22c55e",
   color: "#08150c",
   border: "none",
   borderRadius: 8,
-  padding: "9px 16px",
+  padding: "8px 14px",
   fontWeight: 700,
   fontSize: 13,
   cursor: "pointer",
+  whiteSpace: "nowrap",
 };
-const editBtnStyle = {
+
+const editBtnStyle: React.CSSProperties = {
   background: "#1e3a26",
   color: "#7fd99a",
   border: "none",
@@ -299,9 +350,10 @@ const editBtnStyle = {
   fontSize: 12,
   fontWeight: 600,
   cursor: "pointer",
-  marginRight: 6,
+  marginRight: 4,
 };
-const deleteBtnStyle = {
+
+const deleteBtnStyle: React.CSSProperties = {
   background: "#3b1a1a",
   color: "#f87171",
   border: "none",
@@ -311,7 +363,8 @@ const deleteBtnStyle = {
   fontWeight: 600,
   cursor: "pointer",
 };
-const saveBtnStyle = {
+
+const saveBtnStyle: React.CSSProperties = {
   background: "#22c55e",
   color: "#08150c",
   border: "none",
@@ -320,9 +373,10 @@ const saveBtnStyle = {
   fontSize: 12,
   fontWeight: 700,
   cursor: "pointer",
-  marginRight: 6,
+  marginRight: 4,
 };
-const cancelBtnStyle = {
+
+const cancelBtnStyle: React.CSSProperties = {
   background: "#1e3a26",
   color: "#e8f0ea",
   border: "none",
